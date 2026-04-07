@@ -9,27 +9,42 @@ import { DB_ADDRESS } from './config'
 import errorHandler from './middlewares/error-handler'
 import serveStatic from './middlewares/serverStatic'
 import routes from './routes'
+import { csrfProtection } from './middlewares/csrf'
+import { noSqlSanitizer } from './middlewares/noSqlSanitizer'
+import { generalLimiter, authLimiter, orderLimiter, uploadLimiter } from './middlewares/rateLimiter'
+import { preventPathTraversal } from './middlewares/pathTraversal'
 
 const { PORT = 3000 } = process.env
 const app = express()
 
 app.use(cookieParser())
 
-app.use(cors())
-// app.use(cors({ origin: ORIGIN_ALLOW, credentials: true }));
-// app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Referer', 'Origin']
+}))
+app.use(csrfProtection)
+app.use(noSqlSanitizer)
+app.use(preventPathTraversal)
+
+// Rate limiting - защита от DDoS
+app.use(generalLimiter)
+app.use('/auth/login', authLimiter)
+app.use('/auth/register', authLimiter)
+app.use('/order', orderLimiter)
+app.use('/upload', uploadLimiter)
 
 app.use(serveStatic(path.join(__dirname, 'public')))
 
-app.use(urlencoded({ extended: true }))
-app.use(json())
+app.use(urlencoded({ extended: true, limit: '1mb' }))
+app.use(json({ limit: '1mb' }))
 
 app.options('*', cors())
 app.use(routes)
 app.use(errors())
 app.use(errorHandler)
-
-// eslint-disable-next-line no-console
 
 const bootstrap = async () => {
     try {
