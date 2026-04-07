@@ -9,27 +9,39 @@ import { DB_ADDRESS } from './config'
 import errorHandler from './middlewares/error-handler'
 import serveStatic from './middlewares/serverStatic'
 import routes from './routes'
-import { csrfProtection } from './middlewares/csrf'
 import { noSqlSanitizer } from './middlewares/noSqlSanitizer'
-import { generalLimiter, authLimiter, orderLimiter, uploadLimiter } from './middlewares/rateLimiter'
+import {
+    generalLimiter,
+    authLimiter,
+    orderLimiter,
+    uploadLimiter,
+} from './middlewares/rateLimiter'
 import { preventPathTraversal } from './middlewares/pathTraversal'
+import { generateCSRFToken, csrfProtection } from './middlewares/csrf'
 
 const { PORT = 3000 } = process.env
 const app = express()
 
 app.use(cookieParser())
-
-app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000', 'http://localhost'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Referer', 'Origin']
-}))
+app.use(generateCSRFToken)
 app.use(csrfProtection)
+
+app.use(
+    cors({
+        origin: [
+            'http://localhost:5173',
+            'http://localhost:3000',
+            'http://localhost',
+        ],
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Referer', 'Origin'],
+    })
+)
+
 app.use(noSqlSanitizer)
 app.use(preventPathTraversal)
 
-// Rate limiting - защита от DDoS
 app.use(generalLimiter)
 app.use('/auth/login', authLimiter)
 app.use('/auth/register', authLimiter)

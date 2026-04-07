@@ -1,44 +1,62 @@
 import { NextFunction, Request, Response } from 'express'
-import ForbiddenError from '../errors/forbidden-error'
+import Tokens from 'csrf'
 
-export const csrfProtection = (
-    req: Request,
-    _res: Response,
+const tokens = new Tokens()
+
+export const generateCSRFToken = (
+    _req: Request,
+    res: Response,
     next: NextFunction
 ) => {
-    // Пропускаем GET, HEAD, OPTIONS запросы
-    if (
-        req.method === 'GET' ||
-        req.method === 'HEAD' ||
-        req.method === 'OPTIONS'
-    ) {
+    try {
+        const secret = tokens.secretSync()
+        const token = tokens.create(secret)
+
+        res.cookie('csrf-secret', secret, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60 * 1000, // 24 часа
+        })
+
+        res.setHeader('X-CSRF-Token', token)
+        res.setHeader('Access-Control-Expose-Headers', 'X-CSRF-Token')
+
+        next()
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const validateCSRFToken = (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    if (req.method === 'GET') {
         return next()
     }
 
-    // Получаем origin или referer
-    const { origin } = req.headers
-    const { referer } = req.headers
-
-    const requestOrigin = origin || referer
-
-    // Разрешенные домены
-    const allowedOrigins = [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'http://localhost',
-        'http://localhost:80',
-    ]
-
-    const isAllowed = allowedOrigins.some((allowed) => {
-        if (requestOrigin) {
-            return requestOrigin.startsWith(allowed)
-        }
-        return false
-    })
-
-    if (!isAllowed) {
-        return next(new ForbiddenError('CSRF protection: invalid origin'))
+    if (req.path === '/csrf-token' || req.path.includes('/csrf-token')) {
+        return next()
     }
 
-    next()
+    try {
+        const secret = req.cookies['csrf-secret']
+        const token = (req.headers['x-csrf-token'] as string) || req.body.csrf
+
+        if (!secret || !token) {
+            return res.status(403).json({ error: 'CSRF token missing' })
+        }
+
+        if (!tokens.verify(secret, token)) {
+            return res.status(403).json({ error: 'Invalid CSRF token' })
+        }
+
+        next()
+    } catch (error) {
+        next(error)
+    }
 }
+
+export const csrfProtection = validateCSRFToken
