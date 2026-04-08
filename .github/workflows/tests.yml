@@ -29,4 +29,4 @@ jobs:
         docker exec -i bad-server-mongo-1 mongoimport --username root --password example --authenticationDatabase admin --db weblarek --collection users --drop --jsonArray --file /dev/stdin < .dump/weblarek.users.json
         docker exec -i bad-server-mongo-1 mongoimport --username root --password example --authenticationDatabase admin --db weblarek --collection products --drop --jsonArray --file /dev/stdin < .dump/weblarek.products.json
     - name: Run tests
-      run: bash $DIR_TESTS/bin/run.sh || true
+      run: bash $DIR_TESTS/bin/run.sh
