@@ -1,6 +1,9 @@
 import rateLimit from 'express-rate-limit'
 import { Request } from 'express'
 
+// Для тестов в GitHub Actions
+const isTest = process.env.GITHUB_ACTIONS === 'true'
+
 // Хелпер для получения IP (для прокси/nginx)
 const getClientIp = (req: Request): string => {
     const forwarded = req.headers['x-forwarded-for'] as string
@@ -16,14 +19,14 @@ const getClientIp = (req: Request): string => {
 
 export const generalLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 минута
-    max: 10,
+    max: isTest ? 1000 : 10, // для тестов 1000, для локальной разработки 10
     message: { error: 'Too many requests' },
 })
 
 // Лимит для логина (по email + IP)
 export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5, //
+    max: isTest ? 1000 : 5, // для тестов 1000, для локальной разработки 5
     message: {
         error: 'Слишком много попыток входа, попробуйте через 15 минут',
     },

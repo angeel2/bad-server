@@ -29,6 +29,8 @@ export const getCustomers = async (
             search,
         } = req.query
 
+        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
+
         const filters: FilterQuery<Partial<IUser>> = {}
 
         if (registrationDateFrom) {
@@ -92,7 +94,6 @@ export const getCustomers = async (
         }
 
         if (search) {
-            // Защита от NoSQL-инъекции: принудительно преобразуем в строку
             const searchStr = String(search)
             const safeSearch = escapeHtml(searchStr)
             const searchRegex = safeRegex(safeSearch)
@@ -119,8 +120,8 @@ export const getCustomers = async (
 
         const options = {
             sort,
-            skip: (Number(page) - 1) * Number(limit),
-            limit: Number(limit),
+            skip: (Number(page) - 1) * pageSize,
+            limit: pageSize,
         }
 
         const users = await User.find(filters, null, options).populate([
@@ -140,7 +141,7 @@ export const getCustomers = async (
         ])
 
         const totalUsers = await User.countDocuments(filters)
-        const totalPages = Math.ceil(totalUsers / Number(limit))
+        const totalPages = Math.ceil(totalUsers / pageSize)
 
         res.status(200).json({
             customers: users,
@@ -148,7 +149,7 @@ export const getCustomers = async (
                 totalUsers,
                 totalPages,
                 currentPage: Number(page),
-                pageSize: Number(limit),
+                pageSize,
             },
         })
     } catch (error) {

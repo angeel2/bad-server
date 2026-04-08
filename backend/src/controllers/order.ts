@@ -28,6 +28,8 @@ export const getOrders = async (
             search,
         } = req.query
 
+        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
+
         const filters: FilterQuery<Partial<IOrder>> = {}
 
         if (status) {
@@ -90,7 +92,6 @@ export const getOrders = async (
         ]
 
         if (search) {
-            // Защита от NoSQL-инъекции: принудительно преобразуем в строку
             const searchStr = String(search)
             const safeSearch = escapeHtml(searchStr)
             const searchRegex = safeRegex(safeSearch)
@@ -119,8 +120,8 @@ export const getOrders = async (
 
         aggregatePipeline.push(
             { $sort: sort },
-            { $skip: (Number(page) - 1) * Number(limit) },
-            { $limit: Number(limit) },
+            { $skip: (Number(page) - 1) * pageSize },
+            { $limit: pageSize },
             {
                 $group: {
                     _id: '$_id',
@@ -136,7 +137,7 @@ export const getOrders = async (
 
         const orders = await Order.aggregate(aggregatePipeline)
         const totalOrders = await Order.countDocuments(filters)
-        const totalPages = Math.ceil(totalOrders / Number(limit))
+        const totalPages = Math.ceil(totalOrders / pageSize)
 
         res.status(200).json({
             orders,
@@ -144,7 +145,7 @@ export const getOrders = async (
                 totalOrders,
                 totalPages,
                 currentPage: Number(page),
-                pageSize: Number(limit),
+                pageSize,
             },
         })
     } catch (error) {
@@ -160,9 +161,11 @@ export const getOrdersCurrentUser = async (
     try {
         const userId = res.locals.user._id
         const { search, page = 1, limit = 5 } = req.query
+        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
+
         const options = {
-            skip: (Number(page) - 1) * Number(limit),
-            limit: Number(limit),
+            skip: (Number(page) - 1) * pageSize,
+            limit: pageSize,
         }
 
         const user = await User.findById(userId)
@@ -187,7 +190,6 @@ export const getOrdersCurrentUser = async (
         let orders = user.orders as unknown as IOrder[]
 
         if (search) {
-            // Защита от NoSQL-инъекции: принудительно преобразуем в строку
             const searchStr = String(search)
             const safeSearch = escapeHtml(searchStr)
             const searchRegex = safeRegex(safeSearch)
@@ -208,7 +210,7 @@ export const getOrdersCurrentUser = async (
         }
 
         const totalOrders = orders.length
-        const totalPages = Math.ceil(totalOrders / Number(limit))
+        const totalPages = Math.ceil(totalOrders / pageSize)
 
         orders = orders.slice(options.skip, options.skip + options.limit)
 
@@ -218,7 +220,7 @@ export const getOrdersCurrentUser = async (
                 totalOrders,
                 totalPages,
                 currentPage: Number(page),
-                pageSize: Number(limit),
+                pageSize,
             },
         })
     } catch (error) {
@@ -232,7 +234,6 @@ export const getOrderByNumber = async (
     next: NextFunction
 ) => {
     try {
-        // Защита от NoSQL-инъекции: проверяем, что orderNumber - число
         const orderNumber = Number(req.params.orderNumber)
         if (Number.isNaN(orderNumber)) {
             return next(new BadRequestError('Невалидный номер заказа'))
@@ -264,7 +265,6 @@ export const getOrderCurrentUserByNumber = async (
 ) => {
     const userId = res.locals.user._id
     try {
-        // Защита от NoSQL-инъекции: проверяем, что orderNumber - число
         const orderNumber = Number(req.params.orderNumber)
         if (Number.isNaN(orderNumber)) {
             return next(new BadRequestError('Невалидный номер заказа'))
@@ -307,7 +307,6 @@ export const createOrder = async (
         let { address, phone, comment, email } = req.body
         const { payment, total, items } = req.body
 
-        // Защита от NoSQL-инъекции и XSS
         phone = String(phone || '')
         email = String(email || '')
         comment = comment ? String(comment) : ''
@@ -376,13 +375,11 @@ export const updateOrder = async (
     try {
         const { status } = req.body
 
-        // Защита от NoSQL-инъекции: проверяем статус
         const allowedStatuses = ['new', 'delivering', 'completed', 'cancelled']
         if (status && !allowedStatuses.includes(status)) {
             return next(new BadRequestError('Невалидный статус заказа'))
         }
 
-        // Защита от NoSQL-инъекции: проверяем orderNumber
         const orderNumber = Number(req.params.orderNumber)
         if (Number.isNaN(orderNumber)) {
             return next(new BadRequestError('Невалидный номер заказа'))
@@ -419,7 +416,6 @@ export const deleteOrder = async (
     next: NextFunction
 ) => {
     try {
-        // Защита от NoSQL-инъекции: проверяем id
         const id = String(req.params.id)
         if (!Types.ObjectId.isValid(id)) {
             return next(new BadRequestError('Невалидный ID заказа'))
