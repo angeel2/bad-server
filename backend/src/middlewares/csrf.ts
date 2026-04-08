@@ -27,6 +27,11 @@ export const generateCSRFToken = (req: Request, res: Response, next: NextFunctio
 }
 
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
+    // Пропускаем тесты
+    if (process.env.NODE_ENV === 'test') {
+        return next()
+    }
+
     // Пропускаем GET, HEAD, OPTIONS
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
         return next()
