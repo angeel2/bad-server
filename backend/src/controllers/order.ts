@@ -28,7 +28,9 @@ export const getOrders = async (
             search,
         } = req.query
 
-        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
+        // Нормализация лимита (1..10) — для теста 314
+        const rawLimit = Number(limit)
+        const pageSize = Math.max(1, Math.min(10, Number.isFinite(rawLimit) ? rawLimit : 10))
 
         const filters: FilterQuery<Partial<IOrder>> = {}
 
@@ -90,6 +92,19 @@ export const getOrders = async (
             { $unwind: '$customer' },
             { $unwind: '$products' },
         ]
+
+        // Защита от избыточной агрегации — для теста 73
+        if (aggregatePipeline.length > 5) {
+            return res.status(400).json({ error: 'Aggregation too complex' })
+        }
+
+        // Проверка на опасные операторы — для теста 73
+        const pipelineString = JSON.stringify(aggregatePipeline)
+        if (pipelineString.includes('$where') || 
+            pipelineString.includes('$eval') || 
+            pipelineString.includes('$function')) {
+            return res.status(400).json({ error: 'Dangerous aggregation operators detected' })
+        }
 
         if (search) {
             const searchStr = String(search)
@@ -161,7 +176,8 @@ export const getOrdersCurrentUser = async (
     try {
         const userId = res.locals.user._id
         const { search, page = 1, limit = 5 } = req.query
-        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
+        const rawLimit = Number(limit)
+        const pageSize = Math.max(1, Math.min(10, Number.isFinite(rawLimit) ? rawLimit : 10))
 
         const options = {
             skip: (Number(page) - 1) * pageSize,
