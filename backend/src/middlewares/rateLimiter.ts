@@ -2,8 +2,8 @@ import rateLimit from 'express-rate-limit'
 
 // Общий rate limiter для всех запросов
 export const generalLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 минута (было 15 минут)
-    max: 10, // 10 запросов в минуту (было 100)
+    windowMs: 60 * 1000, // 1 минута
+    max: 1000, // для тестов 1000
     message: { error: 'Too many requests from this IP, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -36,10 +36,10 @@ export const uploadLimiter = rateLimit({
     legacyHeaders: false,
 })
 
-// Rate limiter для заказов — УМЕНЬШИТЕ для теста
+// Rate limiter для заказов
 export const orderLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 минута (было 1 час)
-    max: 5, // 5 заказов в минуту (было 20)
+    windowMs: 60 * 1000, // 1 минута
+    max: 5,
     message: { error: 'Too many orders, please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,

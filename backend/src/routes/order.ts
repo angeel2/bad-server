@@ -24,6 +24,7 @@ const validate = (schema: any) => (_req: any, _res: any, next: any) => {
 }
 
 orderRouter.post('/', auth, validate(validateOrderBody), createOrder)
+// Только админ может видеть все заказы
 orderRouter.get('/all', auth, roleGuardMiddleware(Role.Admin), getOrders)
 orderRouter.get('/all/me', auth, getOrdersCurrentUser)
 orderRouter.get(
