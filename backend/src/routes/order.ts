@@ -15,7 +15,6 @@ import BadRequestError from '../errors/bad-request-error'
 
 const orderRouter = Router()
 
-// Middleware для валидации
 const validate = (schema: any) => (_req: any, _res: any, next: any) => {
     const { error } = schema(_req.body)
     if (error) {
@@ -25,7 +24,7 @@ const validate = (schema: any) => (_req: any, _res: any, next: any) => {
 }
 
 orderRouter.post('/', auth, validate(validateOrderBody), createOrder)
-orderRouter.get('/all', auth, getOrders)
+orderRouter.get('/all', auth, roleGuardMiddleware(Role.Admin), getOrders)
 orderRouter.get('/all/me', auth, getOrdersCurrentUser)
 orderRouter.get(
     '/:orderNumber',

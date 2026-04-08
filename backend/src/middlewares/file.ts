@@ -1,8 +1,9 @@
-import { Request, Express } from 'express'
+import { Request, Express, NextFunction, Response } from 'express'
 import multer, { FileFilterCallback } from 'multer'
 import { mkdirSync } from 'fs'
 import { join } from 'path'
 import crypto from 'crypto'
+import BadRequestError from '../errors/bad-request-error'
 
 type DestinationCallback = (error: Error | null, destination: string) => void
 type FileNameCallback = (error: Error | null, filename: string) => void
@@ -30,7 +31,6 @@ const storage = multer.diskStorage({
         file: Express.Multer.File,
         cb: FileNameCallback
     ) => {
-        // Генерируем уникальное имя файла (не используем оригинальное)
         const ext = file.originalname.split('.').pop()
         const uniqueName = `${crypto.randomBytes(16).toString('hex')}.${ext}`
         cb(null, uniqueName)
@@ -60,4 +60,18 @@ const limits = {
     fileSize: 5 * 1024 * 1024, // 5MB
 }
 
-export default multer({ storage, fileFilter, limits })
+export const checkFileSize = (
+    req: Request,
+    _res: Response,
+    next: NextFunction
+) => {
+    if (req.file && req.file.size < 2 * 1024) {
+        // меньше 2KB
+        return next(new BadRequestError('Файл слишком маленький (минимум 2KB)'))
+    }
+    next()
+}
+
+const upload = multer({ storage, fileFilter, limits })
+
+export default upload

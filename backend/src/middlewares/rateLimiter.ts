@@ -1,59 +1,46 @@
 import rateLimit from 'express-rate-limit'
-import { Request } from 'express'
 
-const isTest = process.env.GITHUB_ACTIONS === 'true'
-
-const getClientIp = (req: Request): string => {
-    const forwarded = req.headers['x-forwarded-for'] as string
-    if (forwarded) {
-        return forwarded.split(',')[0].trim()
-    }
-    const realIp = req.headers['x-real-ip'] as string
-    if (realIp) {
-        return realIp.trim()
-    }
-    return req.ip || req.socket.remoteAddress || 'unknown'
-}
-
+// Общий rate limiter для всех запросов
 export const generalLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: isTest ? 10000 : 100,
-    message: { error: 'Too many requests' },
-    skip: () => isTest, // пропускаем тесты
+    windowMs: 15 * 60 * 1000, // 15 минут
+    max: 100,
+    message: { error: 'Too many requests from this IP, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
 })
 
-export const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: isTest ? 10000 : 5,
-    message: { error: 'Слишком много попыток входа' },
-    skip: () => isTest,
-    keyGenerator: (req: Request) => {
-        const email = req.body?.email?.toLowerCase?.() || 'unknown'
-        return `login:${email}:${getClientIp(req)}`
-    },
+// Строгий rate limiter для авторизации (логин)
+export const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 минут
+    max: 5,
+    message: { error: 'Too many login attempts, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
 })
 
+// Rate limiter для регистрации
 export const registrationLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: isTest ? 10000 : 3,
-    message: { error: 'Превышен лимит регистраций' },
-    skip: () => isTest,
-    keyGenerator: (req: Request) => {
-        const email = req.body?.email?.toLowerCase?.() || 'unknown'
-        return `register:${email}:${getClientIp(req)}`
-    },
+    windowMs: 60 * 60 * 1000, // 1 час
+    max: 3,
+    message: { error: 'Too many registration attempts, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
 })
 
-export const orderLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: isTest ? 10000 : 10,
-    message: { error: 'Too many orders' },
-    skip: () => isTest,
-})
-
+// Rate limiter для загрузки файлов
 export const uploadLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: isTest ? 10000 : 5,
-    message: { error: 'Too many uploads' },
-    skip: () => isTest,
+    windowMs: 60 * 60 * 1000, // 1 час
+    max: 10,
+    message: { error: 'Too many file uploads, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+})
+
+// Rate limiter для заказов
+export const orderLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 час
+    max: 20,
+    message: { error: 'Too many orders, please try again later.' },
+    standardHeaders: true,
+    legacyHeaders: false,
 })

@@ -11,7 +11,7 @@ import routes from './routes'
 import { noSqlSanitizer } from './middlewares/noSqlSanitizer'
 import {
     generalLimiter,
-    loginLimiter,
+    authLimiter,
     registrationLimiter,
     orderLimiter,
     uploadLimiter,
@@ -44,7 +44,7 @@ app.use(noSqlSanitizer)
 app.use(preventPathTraversal)
 
 app.use(generalLimiter)
-app.use('/auth/login', loginLimiter)
+app.use('/auth/login', authLimiter)
 app.use('/auth/register', registrationLimiter)
 app.use('/order', orderLimiter)
 app.use('/upload', uploadLimiter)
