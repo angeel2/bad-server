@@ -28,14 +28,16 @@ app.use(generateCSRFToken)
 
 app.use(
     cors({
-        origin: [
-            'http://localhost:5173',
-            'http://localhost:3000',
-            'http://localhost',
-        ],
+        origin: 'http://localhost:5173',
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Referer', 'Origin', 'X-CSRF-Token'],
+        allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'Referer',
+            'Origin',
+            'X-CSRF-Token',
+        ],
     })
 )
 

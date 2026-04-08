@@ -14,21 +14,19 @@ const getClientIp = (req: Request): string => {
     return req.ip || req.socket.remoteAddress || 'unknown'
 }
 
-// Общий лимит для всех запросов
 export const generalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 минут
-    max: 100,
-    message: { error: 'Слишком много запросов, попробуйте позже' },
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req: Request) => getClientIp(req),
+    windowMs: 60 * 1000, // 1 минута
+    max: 10,
+    message: { error: 'Too many requests' },
 })
 
 // Лимит для логина (по email + IP)
 export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5, // 
-    message: { error: 'Слишком много попыток входа, попробуйте через 15 минут' },
+    max: 5, //
+    message: {
+        error: 'Слишком много попыток входа, попробуйте через 15 минут',
+    },
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
@@ -52,18 +50,14 @@ export const registrationLimiter = rateLimit({
 
 // Лимит для создания заказов
 export const orderLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 час
-    max: 20,
-    message: { error: 'Слишком много заказов, попробуйте позже' },
-    standardHeaders: true,
-    legacyHeaders: false,
+    windowMs: 60 * 60 * 1000,
+    max: 10,
+    message: { error: 'Too many orders' },
 })
 
 // Лимит для загрузки файлов
 export const uploadLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000, // 1 час
-    max: 10,
-    message: { error: 'Слишком много загрузок, попробуйте позже' },
-    standardHeaders: true,
-    legacyHeaders: false,
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: { error: 'Too many uploads' },
 })
