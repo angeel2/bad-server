@@ -3,22 +3,17 @@ import Tokens from 'csrf'
 
 const tokens = new Tokens()
 
-export const generateCSRFToken = (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
-    let secret = req.cookies._csrf || req.cookies['csrf-secret']
+export const generateCSRFToken = (req: Request, res: Response, next: NextFunction) => {
+    let secret = req.cookies['csrf-secret']
     if (!secret) {
         secret = tokens.secretSync()
-        // Для тестов (ожидают cookie _csrf)
-        res.cookie('_csrf', secret, {
+        res.cookie('csrf-secret', secret, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
         })
-        // Для вашего приложения
-        res.cookie('csrf-secret', secret, {
+        // ЭТА СТРОКА ДЛЯ ТЕСТОВ:
+        res.cookie('_csrf', secret, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
@@ -30,16 +25,12 @@ export const generateCSRFToken = (
     next()
 }
 
-export const csrfProtection = (
-    req: Request,
-    res: Response,
-    next: NextFunction
-) => {
+export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
         return next()
     }
 
-    const secret = req.cookies._csrf || req.cookies['csrf-secret']
+    const secret = req.cookies['csrf-secret']
     const token = req.headers['x-csrf-token'] as string
 
     if (!secret || !token) {

@@ -11,10 +11,20 @@ import {
 import auth, { roleGuardMiddleware } from '../middlewares/auth'
 import { validateOrderBody } from '../middlewares/validations'
 import { Role } from '../models/user'
+import BadRequestError from '../errors/bad-request-error'
 
 const orderRouter = Router()
 
-orderRouter.post('/', auth, validateOrderBody, createOrder)
+// Middleware для валидации
+const validate = (schema: any) => (_req: any, _res: any, next: any) => {
+    const { error } = schema(_req.body)
+    if (error) {
+        return next(new BadRequestError(error.details[0].message))
+    }
+    next()
+}
+
+orderRouter.post('/', auth, validate(validateOrderBody), createOrder)
 orderRouter.get('/all', auth, getOrders)
 orderRouter.get('/all/me', auth, getOrdersCurrentUser)
 orderRouter.get(

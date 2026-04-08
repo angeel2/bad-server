@@ -22,6 +22,7 @@ const CACHE_TTL = 60 * 1000 // 1 минута
 const getProducts = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { page = 1, limit = 5, search } = req.query
+        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
 
         // Проверяем кэш (только если нет поиска)
         if (!search && productsCache && Date.now() - productsCache.timestamp < CACHE_TTL) {
@@ -32,20 +33,19 @@ const getProducts = async (req: Request, res: Response, next: NextFunction) => {
         let filter: any = {}
 
         if (search) {
-            // Принудительно преобразуем в строку и экранируем
             const searchStr = String(search)
             const safeSearch = escapeHtml(searchStr)
             filter = { title: safeRegex(safeSearch) }
         }
 
         const options = {
-            skip: (Number(page) - 1) * Number(limit),
-            limit: Number(limit),
+            skip: (Number(page) - 1) * pageSize,
+            limit: pageSize,
         }
 
         const products = await Product.find(filter, null, options)
         const totalProducts = await Product.countDocuments(filter)
-        const totalPages = Math.ceil(totalProducts / Number(limit))
+        const totalPages = Math.ceil(totalProducts / pageSize)
 
         const responseData = {
             items: products,
@@ -53,11 +53,10 @@ const getProducts = async (req: Request, res: Response, next: NextFunction) => {
                 totalProducts,
                 totalPages,
                 currentPage: Number(page),
-                pageSize: Number(limit),
+                pageSize,
             },
         }
 
-        // Сохраняем в кэш (только если нет поиска)
         if (!search) {
             productsCache = {
                 data: responseData,
@@ -81,7 +80,6 @@ const createProduct = async (
         let { description, category, title } = req.body
         const { price, image } = req.body
 
-        // Защита от NoSQL-инъекции и XSS
         description = description ? String(description) : ''
         category = category ? String(category) : ''
         title = title ? String(title) : ''
@@ -90,10 +88,8 @@ const createProduct = async (
         category = escapeHtml(category)
         title = escapeHtml(title)
 
-        // При создании товара сбрасываем кэш
         productsCache = null
 
-        // Переносим картинку из временной папки
         if (image) {
             movingFile(
                 image.fileName,
@@ -132,15 +128,12 @@ const updateProduct = async (
         const { productId } = req.params
         const { image } = req.body
 
-        // При обновлении товара сбрасываем кэш
         productsCache = null
 
-        // Защита от NoSQL-инъекции: проверяем productId
         if (!productId || productId.includes('$')) {
             return next(new BadRequestError('Невалидный ID товара'))
         }
 
-        // Защита от NoSQL-инъекции: очищаем поля
         const sanitizedBody: any = {}
         if (req.body.title)
             sanitizedBody.title = escapeHtml(String(req.body.title))
@@ -150,7 +143,6 @@ const updateProduct = async (
             sanitizedBody.category = escapeHtml(String(req.body.category))
         if (req.body.price !== undefined) sanitizedBody.price = req.body.price
 
-        // Переносим картинку из временной папки
         if (image) {
             movingFile(
                 image.fileName,
@@ -195,10 +187,8 @@ const deleteProduct = async (
     try {
         const { productId } = req.params
 
-        // При удалении товара сбрасываем кэш
         productsCache = null
 
-        // Защита от NoSQL-инъекции: проверяем productId
         if (!productId || productId.includes('$')) {
             return next(new BadRequestError('Невалидный ID товара'))
         }
