@@ -12,7 +12,8 @@ import routes from './routes'
 import { noSqlSanitizer } from './middlewares/noSqlSanitizer'
 import {
     generalLimiter,
-    authLimiter,
+    loginLimiter,
+    registrationLimiter,
     orderLimiter,
     uploadLimiter,
 } from './middlewares/rateLimiter'
@@ -24,7 +25,6 @@ const app = express()
 
 app.use(cookieParser())
 app.use(generateCSRFToken)
-app.use(csrfProtection)
 
 app.use(
     cors({
@@ -35,7 +35,7 @@ app.use(
         ],
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Referer', 'Origin'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Referer', 'Origin', 'X-CSRF-Token'],
     })
 )
 
@@ -43,8 +43,8 @@ app.use(noSqlSanitizer)
 app.use(preventPathTraversal)
 
 app.use(generalLimiter)
-app.use('/auth/login', authLimiter)
-app.use('/auth/register', authLimiter)
+app.use('/auth/login', loginLimiter)
+app.use('/auth/register', registrationLimiter)
 app.use('/order', orderLimiter)
 app.use('/upload', uploadLimiter)
 
@@ -52,6 +52,8 @@ app.use(serveStatic(path.join(__dirname, 'public')))
 
 app.use(urlencoded({ extended: true, limit: '1mb' }))
 app.use(json({ limit: '1mb' }))
+
+app.use(csrfProtection)
 
 app.options('*', cors())
 app.use(routes)

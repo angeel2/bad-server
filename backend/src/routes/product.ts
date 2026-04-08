@@ -12,7 +12,6 @@ import {
     validateProductUpdateBody,
 } from '../middlewares/validations'
 import { Role } from '../models/user'
-import { csrfProtection } from '../middlewares/csrf'
 
 const productRouter = Router()
 
@@ -20,7 +19,6 @@ productRouter.get('/', getProducts)
 productRouter.post(
     '/',
     auth,
-    csrfProtection,
     roleGuardMiddleware(Role.Admin),
     validateProductBody,
     createProduct
@@ -28,7 +26,6 @@ productRouter.post(
 productRouter.delete(
     '/:productId',
     auth,
-    csrfProtection,
     roleGuardMiddleware(Role.Admin),
     validateObjId,
     deleteProduct
@@ -36,7 +33,6 @@ productRouter.delete(
 productRouter.patch(
     '/:productId',
     auth,
-    csrfProtection,
     roleGuardMiddleware(Role.Admin),
     validateObjId,
     validateProductUpdateBody,

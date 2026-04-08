@@ -1,28 +1,60 @@
 import rateLimit from 'express-rate-limit'
+import { Request } from 'express'
+
+// Хелпер для получения IP (для прокси/nginx)
+const getClientIp = (req: Request): string => {
+    const forwarded = req.headers['x-forwarded-for'] as string
+    if (forwarded) {
+        return forwarded.split(',')[0].trim()
+    }
+    const realIp = req.headers['x-real-ip'] as string
+    if (realIp) {
+        return realIp.trim()
+    }
+    return req.ip || req.socket.remoteAddress || 'unknown'
+}
 
 // Общий лимит для всех запросов
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 минут
-    max: 100, 
-    message: 'Слишком много запросов, попробуйте позже',
+    max: 100,
+    message: { error: 'Слишком много запросов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req: Request) => getClientIp(req),
 })
 
-// Лимит для логина (строже)
-export const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 минут
-    max: 5,
-    message: 'Слишком много попыток входа, попробуйте через 15 минут',
+// Лимит для логина (по email + IP)
+export const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5, // 
+    message: { error: 'Слишком много попыток входа, попробуйте через 15 минут' },
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const email = req.body?.email?.toLowerCase?.() || 'unknown'
+        return `login:${email}:${getClientIp(req)}`
+    },
+})
+
+// Лимит для регистрации (по email + IP)
+export const registrationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 час
+    max: 3,
+    message: { error: 'Превышен лимит регистраций, попробуйте позже' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req: Request) => {
+        const email = req.body?.email?.toLowerCase?.() || 'unknown'
+        return `register:${email}:${getClientIp(req)}`
+    },
 })
 
 // Лимит для создания заказов
 export const orderLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 час
     max: 20,
-    message: 'Слишком много заказов, попробуйте позже',
+    message: { error: 'Слишком много заказов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
 })
@@ -31,7 +63,7 @@ export const orderLimiter = rateLimit({
 export const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 час
     max: 10,
-    message: 'Слишком много загрузок, попробуйте позже',
+    message: { error: 'Слишком много загрузок, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
 })

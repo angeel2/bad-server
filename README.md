@@ -28,7 +28,7 @@ docker compose up -d
 - Удалены `dangerouslySetInnerHTML` во фронтенде
 
 ### 2. CSRF (Межсайтовая подделка запросов)
-- Добавлен middleware для проверки origin/referer заголовков
+- Реализована генерация и валидация CSRF-токенов
 - Защищены все изменяющие данные маршруты (POST, PATCH, DELETE)
 
 ### 3. NoSQL-инъекции

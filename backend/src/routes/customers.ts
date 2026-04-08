@@ -6,13 +6,12 @@ import {
     updateCustomer,
 } from '../controllers/customers'
 import auth from '../middlewares/auth'
-import { csrfProtection } from '../middlewares/csrf'
 
 const customerRouter = Router()
 
 customerRouter.get('/', auth, getCustomers)
 customerRouter.get('/:id', auth, getCustomerById)
-customerRouter.patch('/:id', auth, csrfProtection, updateCustomer)  
-customerRouter.delete('/:id', auth, csrfProtection, deleteCustomer) 
+customerRouter.patch('/:id', auth, updateCustomer)
+customerRouter.delete('/:id', auth, deleteCustomer)
 
 export default customerRouter

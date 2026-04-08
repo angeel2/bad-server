@@ -71,7 +71,11 @@ export default function ProfileOrderDetail() {
                 render: (dataInfo: OrderData) => (
                     <>
                         {dataInfo.comment ? (
-                            <div>{dataInfo.comment}</div>
+                            <div
+                                dangerouslySetInnerHTML={{
+                                    __html: dataInfo.comment,
+                                }}
+                            />
                         ) : (
                             'Комментариев нет'
                         )}

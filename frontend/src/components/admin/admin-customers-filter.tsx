@@ -18,18 +18,15 @@ export default function AdminFilterCustomers() {
     const filterCustomersOption = useSelector(
         customersSelector.selectFilterOption
     )
+     
 
-    const handleFilter = (
-        filters: Record<string, string | number | boolean | { value: string }>
-    ) => {
+    const handleFilter = (filters: Record<string, any>) => {
         dispatch(updateFilter({ ...filters }))
         const queryParams: { [key: string]: string } = {}
         Object.entries(filters).forEach(([key, value]) => {
             if (value) {
                 queryParams[key] =
-                    typeof value === 'object'
-                        ? (value as { value: string }).value
-                        : value.toString()
+                    typeof value === 'object' ? value.value : value.toString()
             }
         })
         setSearchParams(queryParams)
