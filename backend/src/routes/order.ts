@@ -30,7 +30,6 @@ orderRouter.patch(
     roleGuardMiddleware(Role.Admin),
     updateOrder
 )
-
 orderRouter.delete('/:id', auth, roleGuardMiddleware(Role.Admin), deleteOrder)
 
 export default orderRouter

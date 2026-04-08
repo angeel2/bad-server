@@ -111,6 +111,18 @@ export class WebLarekAPI extends Api implements IWebLarekAPI {
         this.cdn = cdn
     }
 
+    // Получение CSRF токена
+    private getCsrfToken = async (): Promise<string> => {
+        const response = await this.request<{ csrfToken: string }>(
+            '/auth/csrf-token',
+            {
+                method: 'GET',
+                credentials: 'include',
+            }
+        )
+        return response.csrfToken
+    }
+
     getProductItem = (id: string): Promise<IProduct> => {
         return this.request<IProduct>(`/product/${id}`, { method: 'GET' }).then(
             (data: IProduct) => ({
@@ -146,26 +158,30 @@ export class WebLarekAPI extends Api implements IWebLarekAPI {
         }))
     }
 
-    createOrder = (order: IOrder): Promise<IOrderResult> => {
+    createOrder = async (order: IOrder): Promise<IOrderResult> => {
+        const csrfToken = await this.getCsrfToken()
         return this.requestWithRefresh<IOrderResult>('/order', {
             method: 'POST',
             body: JSON.stringify(order),
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
                 Authorization: `Bearer ${getCookie('accessToken')}`,
             },
         }).then((data: IOrderResult) => data)
     }
 
-    updateOrderStatus = (
+    updateOrderStatus = async (
         status: StatusType,
         orderNumber: string
     ): Promise<IOrderResult> => {
+        const csrfToken = await this.getCsrfToken()
         return this.requestWithRefresh<IOrderResult>(`/order/${orderNumber}`, {
             method: 'PATCH',
             body: JSON.stringify({ status }),
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
                 Authorization: `Bearer ${getCookie('accessToken')}`,
             },
         })
@@ -226,23 +242,27 @@ export class WebLarekAPI extends Api implements IWebLarekAPI {
         )
     }
 
-    loginUser = (data: UserLoginBodyDto) => {
+    loginUser = async (data: UserLoginBodyDto) => {
+        const csrfToken = await this.getCsrfToken()
         return this.request<UserResponseToken>('/auth/login', {
             method: 'POST',
             body: JSON.stringify(data),
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
             },
             credentials: 'include',
         })
     }
 
-    registerUser = (data: UserRegisterBodyDto) => {
+    registerUser = async (data: UserRegisterBodyDto) => {
+        const csrfToken = await this.getCsrfToken()
         return this.request<UserResponseToken>('/auth/register', {
             method: 'POST',
             body: JSON.stringify(data),
             headers: {
                 'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
             },
             credentials: 'include',
         })

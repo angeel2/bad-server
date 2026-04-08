@@ -5,10 +5,10 @@ import NotFoundError from '../errors/not-found-error'
 import Order, { IOrder } from '../models/order'
 import Product, { IProduct } from '../models/product'
 import User from '../models/user'
+import { escapeHtml } from '../utils/escapeHtml'
+import { safeRegex } from '../utils/safeRegex'
 
-// eslint-disable-next-line max-len
-// GET /orders?page=2&limit=5&sort=totalAmount&order=desc&orderDateFrom=2024-07-01&orderDateTo=2024-08-01&status=delivering&totalAmountFrom=100&totalAmountTo=1000&search=%2B1
-
+// GET /orders
 export const getOrders = async (
     req: Request,
     res: Response,
@@ -90,8 +90,11 @@ export const getOrders = async (
         ]
 
         if (search) {
-            const searchRegex = new RegExp(search as string, 'i')
-            const searchNumber = Number(search)
+            // Защита от NoSQL-инъекции: принудительно преобразуем в строку
+            const searchStr = String(search)
+            const safeSearch = escapeHtml(searchStr)
+            const searchRegex = safeRegex(safeSearch)
+            const searchNumber = Number(searchStr)
 
             const searchConditions: any[] = [{ 'products.title': searchRegex }]
 
@@ -184,18 +187,18 @@ export const getOrdersCurrentUser = async (
         let orders = user.orders as unknown as IOrder[]
 
         if (search) {
-            // если не экранировать то получаем Invalid regular expression: /+1/i: Nothing to repeat
-            const searchRegex = new RegExp(search as string, 'i')
-            const searchNumber = Number(search)
+            // Защита от NoSQL-инъекции: принудительно преобразуем в строку
+            const searchStr = String(search)
+            const safeSearch = escapeHtml(searchStr)
+            const searchRegex = safeRegex(safeSearch)
+            const searchNumber = Number(searchStr)
             const products = await Product.find({ title: searchRegex })
             const productIds = products.map((product) => product._id)
 
             orders = orders.filter((order) => {
-                // eslint-disable-next-line max-len
                 const matchesProductTitle = order.products.some((product) =>
                     productIds.some((id) => id.equals(product._id))
                 )
-                // eslint-disable-next-line max-len
                 const matchesOrderNumber =
                     !Number.isNaN(searchNumber) &&
                     order.orderNumber === searchNumber
@@ -223,15 +226,20 @@ export const getOrdersCurrentUser = async (
     }
 }
 
-// Get order by ID
 export const getOrderByNumber = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
     try {
+        // Защита от NoSQL-инъекции: проверяем, что orderNumber - число
+        const orderNumber = Number(req.params.orderNumber)
+        if (Number.isNaN(orderNumber)) {
+            return next(new BadRequestError('Невалидный номер заказа'))
+        }
+
         const order = await Order.findOne({
-            orderNumber: req.params.orderNumber,
+            orderNumber,
         })
             .populate(['customer', 'products'])
             .orFail(
@@ -256,8 +264,14 @@ export const getOrderCurrentUserByNumber = async (
 ) => {
     const userId = res.locals.user._id
     try {
+        // Защита от NoSQL-инъекции: проверяем, что orderNumber - число
+        const orderNumber = Number(req.params.orderNumber)
+        if (Number.isNaN(orderNumber)) {
+            return next(new BadRequestError('Невалидный номер заказа'))
+        }
+
         const order = await Order.findOne({
-            orderNumber: req.params.orderNumber,
+            orderNumber,
         })
             .populate(['customer', 'products'])
             .orFail(
@@ -267,7 +281,6 @@ export const getOrderCurrentUserByNumber = async (
                     )
             )
         if (!order.customer._id.equals(userId)) {
-            // Если нет доступа не возвращаем 403, а отдаем 404
             return next(
                 new NotFoundError('Заказ по заданному id отсутствует в базе')
             )
@@ -281,7 +294,7 @@ export const getOrderCurrentUserByNumber = async (
     }
 }
 
-// POST /product
+// POST /order
 export const createOrder = async (
     req: Request,
     res: Response,
@@ -291,8 +304,31 @@ export const createOrder = async (
         const basket: IProduct[] = []
         const products = await Product.find<IProduct>({})
         const userId = res.locals.user._id
-        const { address, payment, phone, total, email, items, comment } =
-            req.body
+        let { address, phone, comment, email } = req.body
+        const { payment, total, items } = req.body
+
+        // Защита от NoSQL-инъекции и XSS
+        phone = String(phone || '')
+        email = String(email || '')
+        comment = comment ? String(comment) : ''
+        address = String(address || '')
+
+        phone = escapeHtml(phone)
+        email = escapeHtml(email)
+        comment = escapeHtml(comment)
+        address = escapeHtml(address)
+
+        if (!Array.isArray(items)) {
+            return next(new BadRequestError('Неверный формат товаров'))
+        }
+
+        if (items.length > 100) {
+            return next(
+                new BadRequestError(
+                    'Слишком много товаров в заказе (максимум 100)'
+                )
+            )
+        }
 
         items.forEach((id: Types.ObjectId) => {
             const product = products.find((p) => p._id.equals(id))
@@ -339,8 +375,21 @@ export const updateOrder = async (
 ) => {
     try {
         const { status } = req.body
+
+        // Защита от NoSQL-инъекции: проверяем статус
+        const allowedStatuses = ['new', 'delivering', 'completed', 'cancelled']
+        if (status && !allowedStatuses.includes(status)) {
+            return next(new BadRequestError('Невалидный статус заказа'))
+        }
+
+        // Защита от NoSQL-инъекции: проверяем orderNumber
+        const orderNumber = Number(req.params.orderNumber)
+        if (Number.isNaN(orderNumber)) {
+            return next(new BadRequestError('Невалидный номер заказа'))
+        }
+
         const updatedOrder = await Order.findOneAndUpdate(
-            { orderNumber: req.params.orderNumber },
+            { orderNumber },
             { status },
             { new: true, runValidators: true }
         )
@@ -370,7 +419,13 @@ export const deleteOrder = async (
     next: NextFunction
 ) => {
     try {
-        const deletedOrder = await Order.findByIdAndDelete(req.params.id)
+        // Защита от NoSQL-инъекции: проверяем id
+        const id = String(req.params.id)
+        if (!Types.ObjectId.isValid(id)) {
+            return next(new BadRequestError('Невалидный ID заказа'))
+        }
+
+        const deletedOrder = await Order.findByIdAndDelete(id)
             .orFail(
                 () =>
                     new NotFoundError(
