@@ -24,5 +24,9 @@ jobs:
       run: set -eu && git clone --depth 1 $REP_TESTS $DIR_TESTS
     - name: Start project
       run: bash $DIR_TESTS/bin/start_project.sh
+    - name: Import MongoDB data
+      run: |
+        docker exec -i bad-server-mongo-1 mongoimport --username root --password example --authenticationDatabase admin --db weblarek --collection users --drop --file /dev/stdin < .dump/weblarek.users.json
+        docker exec -i bad-server-mongo-1 mongoimport --username root --password example --authenticationDatabase admin --db weblarek --collection products --drop --file /dev/stdin < .dump/weblarek.products.json
     - name: Run tests
       run: bash $DIR_TESTS/bin/run.sh
