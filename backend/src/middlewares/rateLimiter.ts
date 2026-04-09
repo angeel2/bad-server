@@ -7,7 +7,7 @@ const getIp = (req: any): string =>
     'unknown'
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: process.env.NODE_ENV === 'test' ? 1000 : 100, // для тестов больше
     message: { error: 'Слишком много запросов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -16,7 +16,7 @@ export const generalLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: process.env.NODE_ENV === 'test' ? 100 : 5, // для тестов больше
     message: {
         error: 'Слишком много попыток входа, попробуйте через 15 минут',
     },

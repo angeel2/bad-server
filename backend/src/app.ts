@@ -8,7 +8,7 @@ import { DB_ADDRESS } from './config'
 import errorHandler from './middlewares/error-handler'
 import serveStatic from './middlewares/serverStatic'
 import routes from './routes'
-// import { generateCSRFToken, csrfProtection } from './middlewares/csrf'
+import { generateCSRFToken, csrfProtection } from './middlewares/csrf'
 import { noSqlSanitizer } from './middlewares/noSqlSanitizer'
 import {
     generalLimiter,
@@ -21,12 +21,12 @@ const PORT = 3000
 const app = express()
 
 app.use(cookieParser())
-// app.use(generateCSRFToken)
+app.use(generateCSRFToken)
 app.use(cors())
 app.use(urlencoded({ extended: true, limit: '1mb' }))
 app.use(json({ limit: '1mb' }))
 app.use(noSqlSanitizer)
-// app.use(csrfProtection)
+app.use(csrfProtection)
 
 app.use(generalLimiter)
 app.use('/auth/login', authLimiter)
