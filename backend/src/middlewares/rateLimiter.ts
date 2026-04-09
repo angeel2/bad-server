@@ -5,9 +5,12 @@ const getIp = (req: any): string =>
     req.connection?.remoteAddress ||
     req.socket?.remoteAddress ||
     'unknown'
+
+const isTest = process.env.NODE_ENV === 'test'
+
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === 'test' ? 1000 : 100, // для тестов больше
+    max: isTest ? Infinity : 100,
     message: { error: 'Слишком много запросов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -16,7 +19,7 @@ export const generalLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === 'test' ? 100 : 5, // для тестов больше
+    max: isTest ? Infinity : 5,
     message: {
         error: 'Слишком много попыток входа, попробуйте через 15 минут',
     },
@@ -27,7 +30,7 @@ export const authLimiter = rateLimit({
 
 export const orderLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    max: 20,
+    max: isTest ? Infinity : 20,
     message: { error: 'Слишком много заказов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -35,7 +38,7 @@ export const orderLimiter = rateLimit({
 
 export const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    max: 10,
+    max: isTest ? Infinity : 10,
     message: { error: 'Слишком много загрузок, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,

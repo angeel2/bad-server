@@ -29,6 +29,10 @@ export const getCustomers = async (
             search,
         } = req.query
 
+        // Нормализуем и ограничиваем лимит (максимум 10)
+        const pageNum = Math.max(1, Number(page))
+        const limitNum = Math.min(10, Math.max(1, Number(limit)))
+
         const filters: FilterQuery<Partial<IUser>> = {}
 
         if (registrationDateFrom) {
@@ -93,13 +97,9 @@ export const getCustomers = async (
 
         if (search) {
             const safeSearch = escapeHtml(String(search))
-
-            // Дополнительная защита: ограничиваем длину поискового запроса
             const truncatedSearch = safeSearch.slice(0, 100)
-
             const searchRegex = safeRegex(truncatedSearch)
 
-            // Дополнительная проверка: не пытается ли пользователь внедрить NoSQL операторы
             if (
                 truncatedSearch.includes('$') ||
                 truncatedSearch.includes('{') ||
@@ -133,8 +133,8 @@ export const getCustomers = async (
 
         const options = {
             sort,
-            skip: (Number(page) - 1) * Number(limit),
-            limit: Number(limit),
+            skip: (pageNum - 1) * limitNum,
+            limit: limitNum,
         }
 
         const users = await User.find(filters, null, options).populate([
@@ -154,15 +154,15 @@ export const getCustomers = async (
         ])
 
         const totalUsers = await User.countDocuments(filters)
-        const totalPages = Math.ceil(totalUsers / Number(limit))
+        const totalPages = Math.ceil(totalUsers / limitNum)
 
         res.status(200).json({
             customers: users,
             pagination: {
                 totalUsers,
                 totalPages,
-                currentPage: Number(page),
-                pageSize: Number(limit),
+                currentPage: pageNum,
+                pageSize: limitNum,
             },
         })
     } catch (error) {
