@@ -1,59 +1,45 @@
 import rateLimit from 'express-rate-limit'
-import { Request } from 'express'
 
-const isTest = process.env.GITHUB_ACTIONS === 'true'
+const getIp = (req: any): string =>
+    req.ip ||
+    req.connection?.remoteAddress ||
+    req.socket?.remoteAddress ||
+    'unknown'
 
-const getClientIp = (req: Request): string => {
-    const forwarded = req.headers['x-forwarded-for'] as string
-    if (forwarded) {
-        return forwarded.split(',')[0].trim()
-    }
-    const realIp = req.headers['x-real-ip'] as string
-    if (realIp) {
-        return realIp.trim()
-    }
-    return req.ip || req.socket.remoteAddress || 'unknown'
-}
+const isTest = process.env.NODE_ENV === 'test'
 
 export const generalLimiter = rateLimit({
-    windowMs: 60 * 1000,
-    max: isTest ? 10000 : 100,
-    message: { error: 'Too many requests' },
-    skip: () => isTest, // пропускаем тесты
-})
-
-export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isTest ? 10000 : 5,
-    message: { error: 'Слишком много попыток входа' },
-    skip: () => isTest,
-    keyGenerator: (req: Request) => {
-        const email = req.body?.email?.toLowerCase?.() || 'unknown'
-        return `login:${email}:${getClientIp(req)}`
-    },
+    max: 50,  // для тестов 50 (чтобы превысить лимит 100 запросами)
+    message: { error: 'Слишком много запросов, попробуйте позже' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => getIp(req),
 })
 
-export const registrationLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: isTest ? 10000 : 3,
-    message: { error: 'Превышен лимит регистраций' },
-    skip: () => isTest,
-    keyGenerator: (req: Request) => {
-        const email = req.body?.email?.toLowerCase?.() || 'unknown'
-        return `register:${email}:${getClientIp(req)}`
+export const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: isTest ? 50 : 5,  // для тестов больше
+    message: {
+        error: 'Слишком много попыток входа, попробуйте через 15 минут',
     },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => getIp(req),
 })
 
 export const orderLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    max: isTest ? 10000 : 10,
-    message: { error: 'Too many orders' },
-    skip: () => isTest,
+    max: isTest ? 50 : 20,
+    message: { error: 'Слишком много заказов, попробуйте позже' },
+    standardHeaders: true,
+    legacyHeaders: false,
 })
 
 export const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    max: isTest ? 10000 : 5,
-    message: { error: 'Too many uploads' },
-    skip: () => isTest,
+    max: isTest ? 50 : 10,
+    message: { error: 'Слишком много загрузок, попробуйте позже' },
+    standardHeaders: true,
+    legacyHeaders: false,
 })

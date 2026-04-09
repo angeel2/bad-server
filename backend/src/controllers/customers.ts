@@ -1,12 +1,11 @@
 import { NextFunction, Request, Response } from 'express'
 import { FilterQuery } from 'mongoose'
+import BadRequestError from '../errors/bad-request-error'
 import NotFoundError from '../errors/not-found-error'
-import Order from '../models/order'
 import User, { IUser } from '../models/user'
 import { escapeHtml } from '../utils/escapeHtml'
 import { safeRegex } from '../utils/safeRegex'
 
-// GET /customers
 export const getCustomers = async (
     req: Request,
     res: Response,
@@ -29,7 +28,9 @@ export const getCustomers = async (
             search,
         } = req.query
 
-        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
+        // Нормализуем и ограничиваем лимит (максимум 10)
+        const pageNum = Math.max(1, Number(page))
+        const limitNum = Math.min(10, Math.max(1, Number(limit)))
 
         const filters: FilterQuery<Partial<IUser>> = {}
 
@@ -94,34 +95,29 @@ export const getCustomers = async (
         }
 
         if (search) {
-            const searchStr = String(search)
-            const safeSearch = escapeHtml(searchStr)
-            const searchRegex = safeRegex(safeSearch)
-            const orders = await Order.find(
-                {
-                    $or: [{ deliveryAddress: searchRegex }],
-                },
-                '_id'
-            )
-
-            const orderIds = orders.map((order) => order._id)
-
-            filters.$or = [
-                { name: searchRegex },
-                { lastOrder: { $in: orderIds } },
-            ]
+            const safeSearch = escapeHtml(String(search))
+            filters.name = { $regex: safeSearch, $options: 'i' }
         }
 
         const sort: { [key: string]: any } = {}
 
         if (sortField && sortOrder) {
-            sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
+            const allowedSortFields = [
+                'createdAt',
+                'totalAmount',
+                'orderCount',
+                'name',
+                'email',
+            ]
+            if (allowedSortFields.includes(sortField as string)) {
+                sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
+            }
         }
 
         const options = {
             sort,
-            skip: (Number(page) - 1) * pageSize,
-            limit: pageSize,
+            skip: (pageNum - 1) * limitNum,
+            limit: limitNum,
         }
 
         const users = await User.find(filters, null, options).populate([
@@ -141,15 +137,15 @@ export const getCustomers = async (
         ])
 
         const totalUsers = await User.countDocuments(filters)
-        const totalPages = Math.ceil(totalUsers / pageSize)
+        const totalPages = Math.ceil(totalUsers / limitNum)
 
         res.status(200).json({
             customers: users,
             pagination: {
                 totalUsers,
                 totalPages,
-                currentPage: Number(page),
-                pageSize,
+                currentPage: pageNum,
+                pageSize: limitNum,
             },
         })
     } catch (error) {
@@ -157,7 +153,6 @@ export const getCustomers = async (
     }
 }
 
-// GET /customers/:id
 export const getCustomerById = async (
     req: Request,
     res: Response,
@@ -168,13 +163,15 @@ export const getCustomerById = async (
             'orders',
             'lastOrder',
         ])
+        if (!user) {
+            return next(new NotFoundError('Пользователь не найден'))
+        }
         res.status(200).json(user)
     } catch (error) {
         next(error)
     }
 }
 
-// PATCH /customers/:id
 export const updateCustomer = async (
     req: Request,
     res: Response,
@@ -186,6 +183,7 @@ export const updateCustomer = async (
             req.body,
             {
                 new: true,
+                runValidators: true,
             }
         )
             .orFail(
@@ -201,7 +199,6 @@ export const updateCustomer = async (
     }
 }
 
-// DELETE /customers/:id
 export const deleteCustomer = async (
     req: Request,
     res: Response,

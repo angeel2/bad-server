@@ -5,7 +5,8 @@ services:
     env_file:
       - frontend/.env
     volumes:
-      - frontend:/app/frontend/dist
+      - ./frontend/dist:/app/dist  
+    command: tail -f /dev/null     
 
   mongo:
     image: mongo
@@ -42,7 +43,7 @@ services:
     ports:
       - 80:80
     volumes:
-      - frontend:/var/app
+      - ./frontend/dist:/var/app
       - public:/var/public
     depends_on:
       - frontend
@@ -51,7 +52,6 @@ services:
       - internal
 
 volumes:
-  frontend:
   public:
   db:
 
