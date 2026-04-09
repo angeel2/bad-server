@@ -94,29 +94,21 @@ export const getCustomers = async (
             }
         }
 
-        // Упрощённый поиск — только по имени пользователя
         if (search) {
             const safeSearch = escapeHtml(String(search))
-            const truncatedSearch = safeSearch.slice(0, 100)
-            const searchRegex = safeRegex(truncatedSearch)
-
-            if (
-                truncatedSearch.includes('$') ||
-                truncatedSearch.includes('{') ||
-                truncatedSearch.includes('}')
-            ) {
-                return next(
-                    new BadRequestError('Некорректный поисковый запрос')
-                )
-            }
-
-            filters.name = { $regex: searchRegex, $options: 'i' }
+            filters.name = { $regex: safeSearch, $options: 'i' }
         }
 
         const sort: { [key: string]: any } = {}
 
         if (sortField && sortOrder) {
-            const allowedSortFields = ['createdAt', 'totalAmount', 'orderCount', 'name', 'email']
+            const allowedSortFields = [
+                'createdAt',
+                'totalAmount',
+                'orderCount',
+                'name',
+                'email',
+            ]
             if (allowedSortFields.includes(sortField as string)) {
                 sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
             }

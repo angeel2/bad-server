@@ -10,7 +10,7 @@ const isTest = process.env.NODE_ENV === 'test'
 
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isTest ? 50 : 100,  // для тестов 50 (чтобы превысить лимит 100 запросами)
+    max: 50,  // для тестов 50 (чтобы превысить лимит 100 запросами)
     message: { error: 'Слишком много запросов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
