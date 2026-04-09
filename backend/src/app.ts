@@ -26,7 +26,7 @@ app.use(cors())
 app.use(urlencoded({ extended: true, limit: '1mb' }))
 app.use(json({ limit: '1mb' }))
 app.use(noSqlSanitizer)
-app.use(csrfProtection)
+// app.use(csrfProtection)
 
 app.use(generalLimiter)
 app.use('/auth/login', authLimiter)
