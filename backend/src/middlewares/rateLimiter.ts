@@ -10,7 +10,7 @@ const isTest = process.env.NODE_ENV === 'test'
 
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isTest ? Infinity : 100,
+    max: isTest ? 100 : 100,  // для тестов 100 запросов (тест ожидает 429)
     message: { error: 'Слишком много запросов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -19,7 +19,7 @@ export const generalLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: isTest ? Infinity : 5,
+    max: isTest ? 50 : 5,  // для тестов больше
     message: {
         error: 'Слишком много попыток входа, попробуйте через 15 минут',
     },
@@ -30,7 +30,7 @@ export const authLimiter = rateLimit({
 
 export const orderLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    max: isTest ? Infinity : 20,
+    max: isTest ? 50 : 20,
     message: { error: 'Слишком много заказов, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,
@@ -38,7 +38,7 @@ export const orderLimiter = rateLimit({
 
 export const uploadLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
-    max: isTest ? Infinity : 10,
+    max: isTest ? 50 : 10,
     message: { error: 'Слишком много загрузок, попробуйте позже' },
     standardHeaders: true,
     legacyHeaders: false,

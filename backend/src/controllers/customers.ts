@@ -2,7 +2,6 @@ import { NextFunction, Request, Response } from 'express'
 import { FilterQuery } from 'mongoose'
 import BadRequestError from '../errors/bad-request-error'
 import NotFoundError from '../errors/not-found-error'
-import Order from '../models/order'
 import User, { IUser } from '../models/user'
 import { escapeHtml } from '../utils/escapeHtml'
 import { safeRegex } from '../utils/safeRegex'
@@ -95,6 +94,7 @@ export const getCustomers = async (
             }
         }
 
+        // Упрощённый поиск — только по имени пользователя
         if (search) {
             const safeSearch = escapeHtml(String(search))
             const truncatedSearch = safeSearch.slice(0, 100)
@@ -110,25 +110,16 @@ export const getCustomers = async (
                 )
             }
 
-            const orders = await Order.find(
-                {
-                    $or: [{ deliveryAddress: searchRegex }],
-                },
-                '_id'
-            )
-
-            const orderIds = orders.map((order) => order._id)
-
-            filters.$or = [
-                { name: searchRegex },
-                { lastOrder: { $in: orderIds } },
-            ]
+            filters.name = { $regex: searchRegex, $options: 'i' }
         }
 
         const sort: { [key: string]: any } = {}
 
         if (sortField && sortOrder) {
-            sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
+            const allowedSortFields = ['createdAt', 'totalAmount', 'orderCount', 'name', 'email']
+            if (allowedSortFields.includes(sortField as string)) {
+                sort[sortField as string] = sortOrder === 'desc' ? -1 : 1
+            }
         }
 
         const options = {
@@ -180,6 +171,9 @@ export const getCustomerById = async (
             'orders',
             'lastOrder',
         ])
+        if (!user) {
+            return next(new NotFoundError('Пользователь не найден'))
+        }
         res.status(200).json(user)
     } catch (error) {
         next(error)
@@ -197,6 +191,7 @@ export const updateCustomer = async (
             req.body,
             {
                 new: true,
+                runValidators: true,
             }
         )
             .orFail(
