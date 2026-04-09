@@ -8,62 +8,45 @@ import { DB_ADDRESS } from './config'
 import errorHandler from './middlewares/error-handler'
 import serveStatic from './middlewares/serverStatic'
 import routes from './routes'
+import { generateCSRFToken, csrfProtection } from './middlewares/csrf'
 import { noSqlSanitizer } from './middlewares/noSqlSanitizer'
 import {
     generalLimiter,
     authLimiter,
-    registrationLimiter,
     orderLimiter,
     uploadLimiter,
 } from './middlewares/rateLimiter'
-import { preventPathTraversal } from './middlewares/pathTraversal'
-import { generateCSRFToken, csrfProtection } from './middlewares/csrf'
 
-const { PORT = 3000 } = process.env
+const PORT = 3000
 const app = express()
 
 app.use(cookieParser())
 app.use(generateCSRFToken)
-
-app.use(
-    cors({
-        origin: 'http://localhost:5173',
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: [
-            'Content-Type',
-            'Authorization',
-            'Referer',
-            'Origin',
-            'X-CSRF-Token',
-        ],
-    })
-)
-
+app.use(cors())
+app.use(urlencoded({ extended: true, limit: '1mb' }))
+app.use(json({ limit: '1mb' }))
 app.use(noSqlSanitizer)
-app.use(preventPathTraversal)
+app.use(csrfProtection)
 
 app.use(generalLimiter)
 app.use('/auth/login', authLimiter)
-app.use('/auth/register', registrationLimiter)
+app.use('/auth/register', authLimiter)
 app.use('/order', orderLimiter)
 app.use('/upload', uploadLimiter)
 
-app.use(serveStatic(path.join(__dirname, 'public')))
-
-app.use(urlencoded({ extended: true, limit: '1mb' }))
-app.use(json({ limit: '1mb' }))
-
-app.use(csrfProtection)
-
 app.options('*', cors())
+
+app.use('/images', express.static(path.join(__dirname, 'public/images')))
 app.use(routes)
+app.use(serveStatic(path.join(__dirname, 'public')))
 app.use(errorHandler)
 
 const bootstrap = async () => {
     try {
         await mongoose.connect(DB_ADDRESS)
-        await app.listen(PORT, () => console.log('ok'))
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server running on port ${PORT}`)
+        })
     } catch (error) {
         console.error(error)
     }

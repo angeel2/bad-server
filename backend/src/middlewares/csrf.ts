@@ -4,17 +4,10 @@ import Tokens from 'csrf'
 const tokens = new Tokens()
 
 export const generateCSRFToken = (req: Request, res: Response, next: NextFunction) => {
-    // Берём секрет из любой из двух кук
-    let secret = req.cookies['csrf-secret'] || req.cookies['_csrf']
+    let secret = req.cookies['csrf-secret']
     if (!secret) {
         secret = tokens.secretSync()
-        // Устанавливаем обе куки – для приложения и для тестов
         res.cookie('csrf-secret', secret, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-        })
-        res.cookie('_csrf', secret, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'lax',
@@ -27,18 +20,11 @@ export const generateCSRFToken = (req: Request, res: Response, next: NextFunctio
 }
 
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
-    // Пропускаем тесты
-    if (process.env.NODE_ENV === 'test') {
-        return next()
-    }
-
-    // Пропускаем GET, HEAD, OPTIONS
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
         return next()
     }
 
-    // Проверяем любую из двух кук
-    const secret = req.cookies['csrf-secret'] || req.cookies['_csrf']
+    const secret = req.cookies['csrf-secret']
     const token = req.headers['x-csrf-token'] as string
 
     if (!secret || !token) {

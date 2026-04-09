@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from 'express'
 import { FilterQuery } from 'mongoose'
+import BadRequestError from '../errors/bad-request-error'
 import NotFoundError from '../errors/not-found-error'
 import Order from '../models/order'
 import User, { IUser } from '../models/user'
 import { escapeHtml } from '../utils/escapeHtml'
 import { safeRegex } from '../utils/safeRegex'
 
-// GET /customers
 export const getCustomers = async (
     req: Request,
     res: Response,
@@ -28,8 +28,6 @@ export const getCustomers = async (
             orderCountTo,
             search,
         } = req.query
-
-        const pageSize = Math.min(Number(limit), 10) // Ограничение pageSize
 
         const filters: FilterQuery<Partial<IUser>> = {}
 
@@ -94,9 +92,24 @@ export const getCustomers = async (
         }
 
         if (search) {
-            const searchStr = String(search)
-            const safeSearch = escapeHtml(searchStr)
-            const searchRegex = safeRegex(safeSearch)
+            const safeSearch = escapeHtml(String(search))
+
+            // Дополнительная защита: ограничиваем длину поискового запроса
+            const truncatedSearch = safeSearch.slice(0, 100)
+
+            const searchRegex = safeRegex(truncatedSearch)
+
+            // Дополнительная проверка: не пытается ли пользователь внедрить NoSQL операторы
+            if (
+                truncatedSearch.includes('$') ||
+                truncatedSearch.includes('{') ||
+                truncatedSearch.includes('}')
+            ) {
+                return next(
+                    new BadRequestError('Некорректный поисковый запрос')
+                )
+            }
+
             const orders = await Order.find(
                 {
                     $or: [{ deliveryAddress: searchRegex }],
@@ -120,8 +133,8 @@ export const getCustomers = async (
 
         const options = {
             sort,
-            skip: (Number(page) - 1) * pageSize,
-            limit: pageSize,
+            skip: (Number(page) - 1) * Number(limit),
+            limit: Number(limit),
         }
 
         const users = await User.find(filters, null, options).populate([
@@ -141,7 +154,7 @@ export const getCustomers = async (
         ])
 
         const totalUsers = await User.countDocuments(filters)
-        const totalPages = Math.ceil(totalUsers / pageSize)
+        const totalPages = Math.ceil(totalUsers / Number(limit))
 
         res.status(200).json({
             customers: users,
@@ -149,7 +162,7 @@ export const getCustomers = async (
                 totalUsers,
                 totalPages,
                 currentPage: Number(page),
-                pageSize,
+                pageSize: Number(limit),
             },
         })
     } catch (error) {
@@ -157,7 +170,6 @@ export const getCustomers = async (
     }
 }
 
-// GET /customers/:id
 export const getCustomerById = async (
     req: Request,
     res: Response,
@@ -174,7 +186,6 @@ export const getCustomerById = async (
     }
 }
 
-// PATCH /customers/:id
 export const updateCustomer = async (
     req: Request,
     res: Response,
@@ -201,7 +212,6 @@ export const updateCustomer = async (
     }
 }
 
-// DELETE /customers/:id
 export const deleteCustomer = async (
     req: Request,
     res: Response,

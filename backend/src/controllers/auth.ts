@@ -9,14 +9,15 @@ import ConflictError from '../errors/conflict-error'
 import NotFoundError from '../errors/not-found-error'
 import UnauthorizedError from '../errors/unauthorized-error'
 import User from '../models/user'
+import { escapeHtml } from '../utils/escapeHtml'
 
+// POST /auth/login
 const login = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // Принудительно преобразуем в строки и очищаем от NoSQL операторов
-        const email = String(req.body.email || '').trim()
+        // Принудительно преобразуем в строки и очищаем от XSS
+        const email = escapeHtml(String(req.body.email || '').trim())
         const password = String(req.body.password || '')
 
-        // Проверка на пустые значения
         if (!email || !password) {
             return next(new BadRequestError('Email и пароль обязательны'))
         }
@@ -39,12 +40,13 @@ const login = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 
+// POST /auth/register
 const register = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // Принудительно преобразуем в строки
-        const email = String(req.body.email || '').trim()
+        // Принудительно преобразуем в строки и очищаем от XSS
+        const email = escapeHtml(String(req.body.email || '').trim())
         const password = String(req.body.password || '')
-        const name = String(req.body.name || '')
+        const name = escapeHtml(String(req.body.name || ''))
 
         const newUser = new User({ email, password, name })
         await newUser.save()
@@ -74,6 +76,7 @@ const register = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 
+// GET /auth/user
 const getCurrentUser = async (
     _req: Request,
     res: Response,
@@ -93,6 +96,7 @@ const getCurrentUser = async (
     }
 }
 
+// Можно лучше: вынести общую логику получения данных из refresh токена
 const deleteRefreshTokenInUser = async (
     req: Request,
     _res: Response,
@@ -125,6 +129,8 @@ const deleteRefreshTokenInUser = async (
     return user
 }
 
+// Реализация удаления токена из базы может отличаться
+// GET  /auth/logout
 const logout = async (req: Request, res: Response, next: NextFunction) => {
     try {
         await deleteRefreshTokenInUser(req, res, next)
@@ -141,6 +147,7 @@ const logout = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 
+// GET  /auth/token
 const refreshAccessToken = async (
     req: Request,
     res: Response,

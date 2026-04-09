@@ -7,9 +7,9 @@ import {
 } from '../controllers/products'
 import auth, { roleGuardMiddleware } from '../middlewares/auth'
 import {
-    validateObjId,
     validateProductBody,
     validateProductUpdateBody,
+    validateObjId,
 } from '../middlewares/validations'
 import { Role } from '../models/user'
 
