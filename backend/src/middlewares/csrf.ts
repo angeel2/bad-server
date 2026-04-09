@@ -20,6 +20,11 @@ export const generateCSRFToken = (req: Request, res: Response, next: NextFunctio
 }
 
 export const csrfProtection = (req: Request, res: Response, next: NextFunction) => {
+    // Исключаем логин и регистрацию из CSRF проверки (для тестов Яндекса)
+    if (req.path === '/auth/login' || req.path === '/auth/register') {
+        return next()
+    }
+    
     if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
         return next()
     }
